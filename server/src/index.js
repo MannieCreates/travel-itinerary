@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import authRoutes from './routes/auth.js';
+import tourRoutes from './routes/tours.js';
 
 const app = express();
 const PORT = 5000;
@@ -19,6 +20,7 @@ mongoose.connect(MONGODB_URI)
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/tours', tourRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
