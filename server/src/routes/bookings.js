@@ -7,6 +7,7 @@ import Payment from '../models/Payment.js';
 import Invoice from '../models/Invoice.js';
 import Notification from '../models/Notification.js';
 import { auth } from '../middleware/auth.js';
+import { sendBookingConfirmation, sendBookingStatusUpdate } from '../utils/emailService.js';
 
 const router = express.Router();
 
@@ -197,6 +198,18 @@ router.post('/', auth, async (req, res) => {
       select: 'title images destination duration category'
     });
 
+    // Get user details for email
+    const user = await User.findById(req.userId);
+
+    // Send booking confirmation email
+    try {
+      await sendBookingConfirmation(booking, user, tour);
+      console.log('Booking confirmation email sent successfully');
+    } catch (emailError) {
+      console.error('Error sending booking confirmation email:', emailError);
+      // Don't fail the booking creation if email fails
+    }
+
     res.status(201).json({
       booking,
       payment,
@@ -297,6 +310,18 @@ router.put('/:id/cancel', auth, async (req, res) => {
     });
 
     await notification.save();
+
+    // Get user details for email
+    const user = await User.findById(req.userId);
+
+    // Send booking status update email
+    try {
+      await sendBookingStatusUpdate(booking, user, tour, 'pending');
+      console.log('Booking cancellation email sent successfully');
+    } catch (emailError) {
+      console.error('Error sending booking cancellation email:', emailError);
+      // Don't fail the cancellation if email fails
+    }
 
     res.json({
       booking,

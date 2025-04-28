@@ -193,6 +193,14 @@ const Navbar = () => {
                       >
                         Your Reviews
                       </Link>
+                      {user?.role === 'admin' && (
+                        <Link
+                          to="/admin/dashboard"
+                          className="block px-4 py-2 text-sm text-indigo-600 hover:bg-gray-50"
+                        >
+                          Admin Panel
+                        </Link>
+                      )}
                       <button
                         onClick={handleLogout}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -334,6 +342,14 @@ const Navbar = () => {
               >
                 Your Reviews
               </Link>
+              {user?.role === 'admin' && (
+                <Link
+                  to="/admin/dashboard"
+                  className="block px-4 py-2 text-base font-medium text-indigo-600 rounded-lg hover:bg-gray-50"
+                >
+                  Admin Panel
+                </Link>
+              )}
               <button
                 onClick={handleLogout}
                 className="w-full text-left px-4 py-2 text-base font-medium text-gray-700 rounded-lg hover:bg-gray-50"

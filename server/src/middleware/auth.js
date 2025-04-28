@@ -17,9 +17,9 @@ const auth = (req, res, next) => {
     if (!token) {
       console.log('No token provided, using development mock user ID');
 
-      // Use a fixed user ID for development without token
-      const devUserId = '680fc797edf36af8d055b2b6';
-      req.userId = devUserId;
+      // Use the admin user ID for development without token
+      const adminUserId = '680fc797edf36af8d055b2b6';
+      req.userId = adminUserId;
 
       console.log('Using fixed dev user ID:', req.userId);
       return next();
@@ -39,9 +39,9 @@ const auth = (req, res, next) => {
         req.userId = userIdCache.get(token);
         console.log('Using cached user ID for token:', req.userId);
       } else {
-        // Use the fixed user ID for development
-        const devUserId = '680fc797edf36af8d055b2b6';
-        req.userId = devUserId;
+        // Use the admin user ID for development
+        const adminUserId = '680fc797edf36af8d055b2b6';
+        req.userId = adminUserId;
         userIdCache.set(token, req.userId);
         console.log('Using fixed dev user ID for invalid token:', req.userId);
       }

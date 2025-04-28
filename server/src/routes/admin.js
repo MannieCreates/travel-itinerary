@@ -5,7 +5,9 @@ import Booking from '../models/Booking.js';
 import Review from '../models/Review.js';
 import Payment from '../models/Payment.js';
 import BlogPost from '../models/BlogPost.js';
+import Notification from '../models/Notification.js';
 import { auth } from '../middleware/auth.js';
+import { sendBookingStatusUpdate } from '../utils/emailService.js';
 
 const router = express.Router();
 
@@ -230,6 +232,10 @@ router.put('/bookings/:id/status', auth, isAdmin, async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
+    // Store old status for notification
+    const oldStatus = booking.status;
+
+    // Update booking status
     booking.status = status;
     await booking.save();
 
@@ -243,6 +249,32 @@ router.put('/bookings/:id/status', auth, isAdmin, async (req, res) => {
         path: 'tour',
         select: 'title destination'
       });
+
+    // Create notification
+    const notification = new Notification({
+      user: booking.user,
+      type: 'booking_update',
+      title: 'Booking Status Updated',
+      message: `Your booking status has been updated from ${oldStatus} to ${status}.`,
+      relatedTo: {
+        model: 'Booking',
+        id: booking._id
+      }
+    });
+
+    await notification.save();
+
+    // Send email notification
+    try {
+      const user = await User.findById(booking.user);
+      const tour = await Tour.findById(booking.tour);
+
+      await sendBookingStatusUpdate(booking, user, tour, oldStatus);
+      console.log('Booking status update email sent successfully');
+    } catch (emailError) {
+      console.error('Error sending booking status update email:', emailError);
+      // Don't fail the status update if email fails
+    }
 
     res.json(updatedBooking);
   } catch (error) {
@@ -323,8 +355,35 @@ router.post('/payments/:id/refund', auth, isAdmin, async (req, res) => {
     // Update booking status
     const booking = await Booking.findById(payment.booking);
     if (booking) {
+      const oldStatus = booking.status;
       booking.status = 'cancelled';
       await booking.save();
+
+      // Create notification
+      const notification = new Notification({
+        user: payment.user,
+        type: 'payment_refund',
+        title: 'Payment Refunded',
+        message: `Your payment of ${amount} ${payment.currency} has been refunded. Reason: ${reason}`,
+        relatedTo: {
+          model: 'Payment',
+          id: payment._id
+        }
+      });
+
+      await notification.save();
+
+      // Send email notification
+      try {
+        const user = await User.findById(payment.user);
+        const tour = await Tour.findById(booking.tour);
+
+        await sendBookingStatusUpdate(booking, user, tour, oldStatus);
+        console.log('Refund notification email sent successfully');
+      } catch (emailError) {
+        console.error('Error sending refund notification email:', emailError);
+        // Don't fail the refund if email fails
+      }
     }
 
     res.json(payment);

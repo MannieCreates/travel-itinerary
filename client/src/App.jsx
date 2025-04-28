@@ -16,6 +16,12 @@ import BlogList from './components/BlogList';
 import BlogPost from './components/BlogPost';
 import NotFound from './components/NotFound';
 
+// Admin Pages
+import DashboardPage from './pages/admin/DashboardPage';
+import ToursPage from './pages/admin/ToursPage';
+import BookingsPage from './pages/admin/BookingsPage';
+import UsersPage from './pages/admin/UsersPage';
+
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
@@ -24,6 +30,20 @@ import { CurrencyProvider } from './context/CurrencyContext';
 const PrivateRoute = ({ children }) => {
   const { token } = useAuth();
   return token ? children : <Navigate to="/login" />;
+};
+
+const AdminRoute = ({ children }) => {
+  const { token, user } = useAuth();
+
+  if (!token) {
+    return <Navigate to="/login" />;
+  }
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/" />;
+  }
+
+  return children;
 };
 
 function App() {
@@ -74,6 +94,30 @@ function App() {
                     } />
                     <Route path="/blog" element={<BlogList />} />
                     <Route path="/blog/:slug" element={<BlogPost />} />
+
+                    {/* Admin Routes */}
+                    <Route path="/admin" element={<Navigate to="/admin/dashboard" />} />
+                    <Route path="/admin/dashboard" element={
+                      <AdminRoute>
+                        <DashboardPage />
+                      </AdminRoute>
+                    } />
+                    <Route path="/admin/tours" element={
+                      <AdminRoute>
+                        <ToursPage />
+                      </AdminRoute>
+                    } />
+                    <Route path="/admin/bookings" element={
+                      <AdminRoute>
+                        <BookingsPage />
+                      </AdminRoute>
+                    } />
+                    <Route path="/admin/users" element={
+                      <AdminRoute>
+                        <UsersPage />
+                      </AdminRoute>
+                    } />
+
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </main>
