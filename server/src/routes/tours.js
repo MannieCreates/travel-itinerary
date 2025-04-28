@@ -1,9 +1,10 @@
 import express from 'express';
 import Tour from '../models/Tour.js';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
-// Search tours with filters
+// Search tours
 router.get('/search', async (req, res) => {
   try {
     const {
@@ -84,14 +85,20 @@ router.get('/search', async (req, res) => {
 // Get tour by ID
 router.get('/:id', async (req, res) => {
   try {
+    // Check if the ID is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid tour ID format' });
+    }
+
     const tour = await Tour.findById(req.params.id);
     if (!tour) {
       return res.status(404).json({ message: 'Tour not found' });
     }
     res.json(tour);
   } catch (error) {
+    console.error('Error fetching tour:', error);
     res.status(500).json({ message: 'Error fetching tour' });
   }
 });
 
-export default router; 
+export default router;

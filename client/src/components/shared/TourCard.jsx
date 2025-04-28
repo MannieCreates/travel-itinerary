@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 
 export const TourCard = ({
@@ -30,12 +31,12 @@ export const TourCard = ({
                 ({tour.totalReviews.toLocaleString()} reviews)
               </span>
             </div>
-            <button
-              onClick={() => navigate(`/tours/${tour._id}`)}
+            <Link
+              to={`/tours/${tour._id}`}
               className="text-emerald-600 hover:text-emerald-700 font-medium"
             >
               Explore →
-            </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -81,15 +82,15 @@ export const TourCard = ({
                 /person
               </span>
             </div>
-            <button
-              onClick={() => navigate(`/tours/${tour._id}`)}
+            <Link
+              to={`/tours/${tour._id}`}
               className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition duration-300"
             >
               View Details
-            </button>
+            </Link>
           </div>
         </div>
       </div>
     </div>
   );
-}; 
+};

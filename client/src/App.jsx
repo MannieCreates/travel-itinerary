@@ -5,6 +5,7 @@ import Navbar from './components/Navbar';
 import LandingPage from './components/LandingPage';
 import SearchResults from './components/SearchResults';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import TourDetails from './components/TourDetails';
 
 const PrivateRoute = ({ children }) => {
   const { token } = useAuth();
@@ -22,6 +23,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/search" element={<SearchResults />} />
+            <Route path="/tours/:id" element={<TourDetails />} />
           </Routes>
         </div>
       </Router>
@@ -29,4 +31,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;
