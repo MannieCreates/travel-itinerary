@@ -40,19 +40,21 @@ mongoose.connect(MONGODB_URI)
 // API Routes
 app.use('/api', routes);
 
-// Basic route
-app.get('/', (req, res) => {
-  res.send('Travel Itinerary API is running');
-});
-
 // In production, serve the React build
 if (NODE_ENV === 'production') {
+  // Serve static files from the React app
   app.use(express.static(path.join(__dirname, '../../client/dist')));
 
+  // For any route except API routes, serve the React app
   app.get('*', (req, res) => {
     // Don't serve React app for API routes
     if (req.path.startsWith('/api')) return;
     res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
+  });
+} else {
+  // Basic route for development mode only
+  app.get('/', (req, res) => {
+    res.send('Travel Itinerary API is running');
   });
 }
 
