@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { searchTours } from '../services/api';
 import { SearchForm } from './shared/SearchForm';
 import { TourCard } from './shared/TourCard';
+import { categories } from './shared/CategorySelector';
 
 const SearchResults = () => {
   const location = useLocation();
@@ -14,6 +15,14 @@ const SearchResults = () => {
   const [selectedCategory, setSelectedCategory] = useState(queryParams.get('category') || 'all');
   const [startDate, setStartDate] = useState(queryParams.get('startDate') || '');
   const [endDate, setEndDate] = useState(queryParams.get('endDate') || '');
+
+  // Check for sortBy in URL
+  useEffect(() => {
+    const sortParam = queryParams.get('sortBy');
+    if (sortParam) {
+      setSortBy(sortParam);
+    }
+  }, []);
 
   // Filter states
   const [priceRange, setPriceRange] = useState([0, 5000]);
@@ -55,8 +64,7 @@ const SearchResults = () => {
     { value: 'duration', label: 'Duration' },
   ];
 
-  // Get today's date in YYYY-MM-DD format for min date attribute
-  const today = new Date().toISOString().split('T')[0];
+  // We don't need to define today here as it's handled in the SearchForm component
 
   const fetchTours = async () => {
     try {
@@ -70,6 +78,7 @@ const SearchResults = () => {
         ...(endDate && { endDate }),
         ...(priceRange[0] > 0 && { minPrice: priceRange[0] }),
         ...(priceRange[1] < 5000 && { maxPrice: priceRange[1] }),
+        ...(sortBy !== 'recommended' && { sortBy }),
       };
 
       const { tours } = await searchTours(params);
@@ -84,16 +93,18 @@ const SearchResults = () => {
   // Fetch tours when search parameters change
   useEffect(() => {
     fetchTours();
-  }, [searchQuery, selectedCategory, startDate, endDate, priceRange]);
+  }, [searchQuery, selectedCategory, startDate, endDate, priceRange, sortBy]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    const searchParams = new URLSearchParams({
-      destination: searchQuery,
-      category: selectedCategory,
-      ...(startDate && { startDate }),
-      ...(endDate && { endDate }),
-    });
+    const searchParams = new URLSearchParams();
+
+    if (searchQuery) searchParams.set('destination', searchQuery);
+    if (selectedCategory !== 'all') searchParams.set('category', selectedCategory);
+    if (startDate) searchParams.set('startDate', startDate);
+    if (endDate) searchParams.set('endDate', endDate);
+    if (sortBy !== 'recommended') searchParams.set('sortBy', sortBy);
+
     navigate(`/search?${searchParams.toString()}`);
     fetchTours();
   };
@@ -173,7 +184,7 @@ const SearchResults = () => {
             )}
             {selectedCategory !== 'all' && (
               <span className="bg-gray-100 px-3 py-1 rounded-full">
-                🏷 {selectedCategory}
+                🏷 {categories.find(cat => cat.id === selectedCategory)?.name || selectedCategory}
               </span>
             )}
           </div>
@@ -309,4 +320,4 @@ const SearchResults = () => {
   );
 };
 
-export default SearchResults; 
+export default SearchResults;

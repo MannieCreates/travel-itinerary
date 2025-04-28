@@ -1,12 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
+import { useCurrency } from '../../context/CurrencyContext';
+import { categories } from './CategorySelector';
 
 export const TourCard = ({
   tour,
   variant = 'horizontal', // 'horizontal' or 'vertical'
 }) => {
   const navigate = useNavigate();
+  const { formatPrice } = useCurrency();
 
   if (variant === 'vertical') {
     return (
@@ -23,7 +26,7 @@ export const TourCard = ({
           </div>
         </div>
         <div className="p-4 flex-grow">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center">
               <span className="text-yellow-400">★</span>
               <span className="ml-1 font-medium">{tour.rating.toFixed(1)}</span>
@@ -31,6 +34,14 @@ export const TourCard = ({
                 ({tour.totalReviews.toLocaleString()} reviews)
               </span>
             </div>
+            <div className="text-emerald-600 font-bold">
+              {formatPrice(tour.price.amount, tour.price.currency)}
+            </div>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600 text-sm">
+              ⏱ {tour.duration} days
+            </span>
             <Link
               to={`/tours/${tour._id}`}
               className="text-emerald-600 hover:text-emerald-700 font-medium"
@@ -70,14 +81,14 @@ export const TourCard = ({
                   ⭐ {tour.rating.toFixed(1)} ({tour.totalReviews} reviews)
                 </span>
                 <span className="bg-gray-100 px-2 py-1 rounded">
-                  🏷 {tour.category}
+                  🏷 {categories.find(cat => cat.id === tour.category)?.name || tour.category}
                 </span>
               </div>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
             <div className="text-emerald-600 font-bold">
-              ${tour.price.amount}
+              {formatPrice(tour.price.amount, tour.price.currency)}
               <span className="text-gray-500 text-sm font-normal">
                 /person
               </span>

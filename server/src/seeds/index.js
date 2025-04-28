@@ -8,6 +8,13 @@ import BlogPost from '../models/BlogPost.js';
 
 const MONGODB_URI = 'mongodb+srv://root:root@cluster0.bgizyas.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 
+// Function to generate future dates
+const generateFutureDate = (monthsFromNow) => {
+  const date = new Date();
+  date.setMonth(date.getMonth() + monthsFromNow);
+  return date;
+};
+
 // Sample data
 const users = [
   {
@@ -40,27 +47,27 @@ const tours = [
     },
     startDates: [
       {
-        date: new Date('2024-07-01'),
+        date: generateFutureDate(1), // 1 month from now
         availableSeats: 15,
         totalSeats: 20
       },
       {
-        date: new Date('2024-08-01'),
+        date: generateFutureDate(2), // 2 months from now
         availableSeats: 20,
         totalSeats: 20
       },
       {
-        date: new Date('2024-09-15'),
+        date: generateFutureDate(3), // 3 months from now
         availableSeats: 18,
         totalSeats: 20
       },
       {
-        date: new Date('2024-10-01'),
+        date: generateFutureDate(4), // 4 months from now
         availableSeats: 20,
         totalSeats: 20
       },
       {
-        date: new Date('2024-11-01'),
+        date: generateFutureDate(5), // 5 months from now
         availableSeats: 16,
         totalSeats: 20
       }
@@ -140,17 +147,17 @@ const tours = [
     },
     startDates: [
       {
-        date: new Date('2024-06-15'),
+        date: generateFutureDate(1), // 1 month from now
         availableSeats: 10,
         totalSeats: 12
       },
       {
-        date: new Date('2024-07-15'),
+        date: generateFutureDate(2), // 2 months from now
         availableSeats: 12,
         totalSeats: 12
       },
       {
-        date: new Date('2024-08-15'),
+        date: generateFutureDate(3), // 3 months from now
         availableSeats: 8,
         totalSeats: 12
       }
@@ -234,17 +241,17 @@ const tours = [
     },
     startDates: [
       {
-        date: new Date('2024-05-15'),
+        date: generateFutureDate(2), // 2 months from now
         availableSeats: 18,
         totalSeats: 20
       },
       {
-        date: new Date('2024-06-20'),
+        date: generateFutureDate(3), // 3 months from now
         availableSeats: 20,
         totalSeats: 20
       },
       {
-        date: new Date('2024-09-10'),
+        date: generateFutureDate(6), // 6 months from now
         availableSeats: 15,
         totalSeats: 20
       }
@@ -311,17 +318,17 @@ const tours = [
     },
     startDates: [
       {
-        date: new Date('2024-07-10'),
+        date: generateFutureDate(3), // 3 months from now
         availableSeats: 12,
         totalSeats: 12
       },
       {
-        date: new Date('2024-08-15'),
+        date: generateFutureDate(4), // 4 months from now
         availableSeats: 8,
         totalSeats: 12
       },
       {
-        date: new Date('2024-09-20'),
+        date: generateFutureDate(5), // 5 months from now
         availableSeats: 12,
         totalSeats: 12
       }
@@ -388,17 +395,17 @@ const tours = [
     },
     startDates: [
       {
-        date: new Date('2024-06-01'),
+        date: generateFutureDate(2), // 2 months from now
         availableSeats: 16,
         totalSeats: 16
       },
       {
-        date: new Date('2024-07-15'),
+        date: generateFutureDate(4), // 4 months from now
         availableSeats: 14,
         totalSeats: 16
       },
       {
-        date: new Date('2024-08-30'),
+        date: generateFutureDate(6), // 6 months from now
         availableSeats: 16,
         totalSeats: 16
       }
@@ -465,17 +472,17 @@ const tours = [
     },
     startDates: [
       {
-        date: new Date('2024-05-01'),
+        date: generateFutureDate(1), // 1 month from now
         availableSeats: 14,
         totalSeats: 14
       },
       {
-        date: new Date('2024-06-15'),
+        date: generateFutureDate(3), // 3 months from now
         availableSeats: 12,
         totalSeats: 14
       },
       {
-        date: new Date('2024-10-01'),
+        date: generateFutureDate(7), // 7 months from now
         availableSeats: 14,
         totalSeats: 14
       }
@@ -537,27 +544,27 @@ const blogPosts = [
   {
     title: '10 Must-Visit Places in Japan',
     slug: '10-must-visit-places-japan',
-    content: `Japan is a country of contrasts, seamlessly blending ancient traditions with cutting-edge technology. 
+    content: `Japan is a country of contrasts, seamlessly blending ancient traditions with cutting-edge technology.
     From the neon-lit streets of Tokyo to the serene temples of Kyoto, every corner of Japan offers unique experiences.
 
     1. Tokyo Skytree
-    Standing at 634 meters, the Tokyo Skytree offers breathtaking views of the metropolis. The observation decks provide 
+    Standing at 634 meters, the Tokyo Skytree offers breathtaking views of the metropolis. The observation decks provide
     360-degree views of the city, and on clear days, you can even spot Mount Fuji.
 
     2. Fushimi Inari Shrine, Kyoto
-    Famous for its thousands of vermillion torii gates, this shrine dedicated to the rice god Inari is a photographer's 
+    Famous for its thousands of vermillion torii gates, this shrine dedicated to the rice god Inari is a photographer's
     paradise. The gates wind through a peaceful forest on Mount Inari.
 
     3. Mount Fuji
-    Japan's iconic mountain is a UNESCO World Heritage site and a must-visit destination. Whether viewing it from afar 
+    Japan's iconic mountain is a UNESCO World Heritage site and a must-visit destination. Whether viewing it from afar
     or climbing to its summit, Mount Fuji is an unforgettable experience.
 
     4. Hiroshima Peace Memorial
-    A sobering reminder of history, the Peace Memorial Park and Museum stand as symbols of peace and hope. The A-Bomb 
+    A sobering reminder of history, the Peace Memorial Park and Museum stand as symbols of peace and hope. The A-Bomb
     Dome is particularly moving.
 
     5. Nara Deer Park
-    Home to over 1,200 wild deer considered sacred messengers of the gods. The park also houses the magnificent Todaiji 
+    Home to over 1,200 wild deer considered sacred messengers of the gods. The park also houses the magnificent Todaiji
     Temple, the world's largest wooden building.
 
     Best Time to Visit:
@@ -589,21 +596,21 @@ const blogPosts = [
   {
     title: 'Ultimate Bali Travel Guide',
     slug: 'ultimate-bali-travel-guide',
-    content: `Bali, the Island of the Gods, offers something for everyone - from pristine beaches and lush jungles 
+    content: `Bali, the Island of the Gods, offers something for everyone - from pristine beaches and lush jungles
     to spiritual temples and vibrant culture. This guide will help you plan the perfect Balinese getaway.
 
     Best Areas to Stay:
 
     1. Seminyak
-    Known for luxury resorts, high-end dining, and sophisticated nightlife. The beach here is perfect for 
+    Known for luxury resorts, high-end dining, and sophisticated nightlife. The beach here is perfect for
     stunning sunsets and surfing.
 
     2. Ubud
-    The cultural heart of Bali, surrounded by rice terraces and ancient temples. Perfect for those seeking 
+    The cultural heart of Bali, surrounded by rice terraces and ancient temples. Perfect for those seeking
     spiritual experiences and artistic inspiration.
 
     3. Nusa Dua
-    Family-friendly area with pristine beaches and calm waters. Home to many luxury resorts and perfect 
+    Family-friendly area with pristine beaches and calm waters. Home to many luxury resorts and perfect
     for water sports.
 
     Must-Do Experiences:
@@ -667,7 +674,7 @@ const blogPosts = [
   {
     title: 'Exploring Europe\'s Cultural Capitals',
     slug: 'exploring-europe-cultural-capitals',
-    content: `Europe's rich tapestry of history, art, and culture makes it a fascinating destination for travelers. 
+    content: `Europe's rich tapestry of history, art, and culture makes it a fascinating destination for travelers.
     From the romantic streets of Paris to the canal-lined cityscape of Amsterdam, each city tells its own unique story.
 
     Must-Visit Cities:
@@ -723,8 +730,8 @@ const blogPosts = [
   {
     title: 'Safari Guide: Wildlife Adventures in East Africa',
     slug: 'safari-guide-east-africa',
-    content: `Experience the magic of an African safari in Tanzania and Kenya, where nature's greatest spectacles 
-    unfold before your eyes. From the vast Serengeti plains to the majestic Masai Mara, this guide will help you 
+    content: `Experience the magic of an African safari in Tanzania and Kenya, where nature's greatest spectacles
+    unfold before your eyes. From the vast Serengeti plains to the majestic Masai Mara, this guide will help you
     plan your perfect safari adventure.
 
     Best Safari Destinations:
@@ -782,8 +789,8 @@ const blogPosts = [
   {
     title: 'Ancient Wonders of Peru',
     slug: 'ancient-wonders-peru',
-    content: `Discover the mystical world of the Incas and explore Peru's breathtaking archaeological sites. 
-    From the mighty Machu Picchu to the sacred Valley of the Incas, Peru offers an unforgettable journey through 
+    content: `Discover the mystical world of the Incas and explore Peru's breathtaking archaeological sites.
+    From the mighty Machu Picchu to the sacred Valley of the Incas, Peru offers an unforgettable journey through
     ancient history and stunning landscapes.
 
     Key Destinations:
@@ -839,8 +846,8 @@ const blogPosts = [
   {
     title: 'Street Food Paradise: Southeast Asian Flavors',
     slug: 'street-food-paradise-southeast-asia',
-    content: `Embark on a culinary adventure through Southeast Asia, where street food reigns supreme and every 
-    meal is an exploration of flavors, textures, and aromas. From Vietnam's pho to Thailand's pad thai, discover 
+    content: `Embark on a culinary adventure through Southeast Asia, where street food reigns supreme and every
+    meal is an exploration of flavors, textures, and aromas. From Vietnam's pho to Thailand's pad thai, discover
     the region's incredible food culture.
 
     Top Food Destinations:
@@ -982,7 +989,7 @@ async function seedDatabase() {
     const bookings = createdTours.map(tour => ({
       user: createdUsers[1]._id,
       tour: tour._id,
-      startDate: tour.startDates[0].date,
+      startDate: tour.startDates[0].date, // This will now be a future date
       status: 'confirmed',
       participants: {
         adults: 2,
@@ -995,7 +1002,7 @@ async function seedDatabase() {
       paymentInfo: {
         method: 'credit_card',
         status: 'completed',
-        transactionId: 'mock_transaction_' + Math.random().toString(36).substr(2, 9)
+        transactionId: 'mock_transaction_' + Math.random().toString(36).substring(2, 11) // Using substring instead of deprecated substr
       }
     }));
     await Booking.create(bookings);
@@ -1017,4 +1024,4 @@ async function seedDatabase() {
   }
 }
 
-seedDatabase(); 
+seedDatabase();

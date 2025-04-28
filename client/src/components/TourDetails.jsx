@@ -1,13 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getTourById } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
+import { useCurrency } from '../context/CurrencyContext';
 
 const TourDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { token } = useAuth();
+  const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { formatPrice, convertPrice } = useCurrency();
+
   const [tour, setTour] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [travelers, setTravelers] = useState(1);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
+  const [actionMessage, setActionMessage] = useState({ text: '', type: '' });
 
   useEffect(() => {
     const fetchTourDetails = async () => {
@@ -41,6 +55,112 @@ const TourDetails = () => {
 
   const [activeTab, setActiveTab] = useState('overview');
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  // Handler for adding tour to cart
+  const handleAddToCart = async () => {
+    if (!token) {
+      // Redirect to login if not authenticated
+      navigate('/login', { state: { from: `/tours/${id}` } });
+      return;
+    }
+
+    if (!selectedDate) {
+      setActionMessage({
+        text: 'Please select a departure date',
+        type: 'error'
+      });
+      return;
+    }
+
+    setIsAddingToCart(true);
+    setActionMessage({ text: '', type: '' });
+
+    try {
+      // Format the date to match what the server expects (YYYY-MM-DD)
+      const formattedDate = new Date(selectedDate).toISOString().split('T')[0];
+
+      const result = await addToCart(tour._id, formattedDate, travelers);
+
+      if (result.success) {
+        setActionMessage({
+          text: 'Tour added to cart successfully!',
+          type: 'success'
+        });
+
+        // Clear message after 3 seconds
+        setTimeout(() => {
+          setActionMessage({ text: '', type: '' });
+        }, 3000);
+      } else {
+        setActionMessage({
+          text: result.error || 'Failed to add tour to cart',
+          type: 'error'
+        });
+      }
+    } catch (err) {
+      setActionMessage({
+        text: 'An error occurred. Please try again.',
+        type: 'error'
+      });
+      console.error('Error adding to cart:', err);
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
+  // Handler for toggling wishlist status
+  const handleWishlistToggle = async () => {
+    if (!token) {
+      // Redirect to login if not authenticated
+      navigate('/login', { state: { from: `/tours/${id}` } });
+      return;
+    }
+
+    setIsAddingToWishlist(true);
+    setActionMessage({ text: '', type: '' });
+
+    try {
+      let result;
+
+      if (isInWishlist(tour._id)) {
+        result = await removeFromWishlist(tour._id);
+        if (result.success) {
+          setActionMessage({
+            text: 'Tour removed from wishlist',
+            type: 'success'
+          });
+        }
+      } else {
+        result = await addToWishlist(tour._id);
+        if (result.success) {
+          setActionMessage({
+            text: 'Tour added to wishlist!',
+            type: 'success'
+          });
+        }
+      }
+
+      if (!result.success) {
+        setActionMessage({
+          text: result.error || 'Failed to update wishlist',
+          type: 'error'
+        });
+      }
+
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        setActionMessage({ text: '', type: '' });
+      }, 3000);
+    } catch (err) {
+      setActionMessage({
+        text: 'An error occurred. Please try again.',
+        type: 'error'
+      });
+      console.error('Error updating wishlist:', err);
+    } finally {
+      setIsAddingToWishlist(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -331,15 +451,27 @@ const TourDetails = () => {
             {/* Pricing Card */}
             <div className="bg-white rounded-xl shadow-md p-6 mb-6 sticky top-20">
               <h3 className="text-2xl font-bold text-gray-800 mb-4">
-                ${tour.price.amount}
+                {formatPrice(tour.price.amount, tour.price.currency)}
                 <span className="text-gray-500 text-base font-normal"> / person</span>
               </h3>
+
+              {actionMessage.text && (
+                <div className={`mb-4 p-3 rounded-lg ${
+                  actionMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {actionMessage.text}
+                </div>
+              )}
 
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select Date
                 </label>
-                <select className="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500">
+                <select
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                >
                   <option value="">Select a departure date</option>
                   {tour.startDates.map((dateOption, index) => (
                     <option
@@ -362,7 +494,11 @@ const TourDetails = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Number of Travelers
                 </label>
-                <select className="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500">
+                <select
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                  value={travelers}
+                  onChange={(e) => setTravelers(parseInt(e.target.value))}
+                >
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
                     <option key={num} value={num}>
                       {num} {num === 1 ? 'person' : 'people'}
@@ -371,26 +507,66 @@ const TourDetails = () => {
                 </select>
               </div>
 
-              <button className="w-full bg-emerald-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-emerald-700 transition duration-300 mb-4">
-                Book Now
+              <button
+                className={`w-full py-3 px-4 rounded-lg font-medium transition duration-300 mb-4 ${
+                  !selectedDate || isAddingToCart
+                    ? 'bg-gray-400 cursor-not-allowed text-white'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                }`}
+                disabled={!selectedDate || isAddingToCart}
+                onClick={handleAddToCart}
+              >
+                {isAddingToCart ? (
+                  <div className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Adding to Cart...
+                  </div>
+                ) : (
+                  'Add to Cart'
+                )}
               </button>
 
-              <button className="w-full bg-white text-emerald-600 py-3 px-4 rounded-lg font-medium border border-emerald-600 hover:bg-emerald-50 transition duration-300">
-                Add to Wishlist
+              <button
+                className={`w-full py-3 px-4 rounded-lg font-medium transition duration-300 ${
+                  isAddingToWishlist
+                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-300'
+                    : isInWishlist(tour._id)
+                      ? 'bg-red-50 text-red-600 border border-red-600 hover:bg-red-100'
+                      : 'bg-white text-emerald-600 border border-emerald-600 hover:bg-emerald-50'
+                }`}
+                disabled={isAddingToWishlist}
+                onClick={handleWishlistToggle}
+              >
+                {isAddingToWishlist ? (
+                  <div className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </div>
+                ) : isInWishlist(tour._id) ? (
+                  'Remove from Wishlist'
+                ) : (
+                  'Add to Wishlist'
+                )}
               </button>
 
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Tour Price</span>
-                  <span className="font-medium">${tour.price.amount}</span>
+                  <span className="text-gray-600">Tour Price ({travelers} {travelers === 1 ? 'person' : 'people'})</span>
+                  <span className="font-medium">{formatPrice(tour.price.amount * travelers, tour.price.currency)}</span>
                 </div>
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-600">Taxes & Fees</span>
-                  <span className="font-medium">${Math.round(tour.price.amount * 0.1)}</span>
+                  <span className="font-medium">{formatPrice(Math.round(tour.price.amount * travelers * 0.1), tour.price.currency)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg mt-4 pt-4 border-t border-gray-200">
                   <span>Total</span>
-                  <span>${Math.round(tour.price.amount * 1.1)}</span>
+                  <span>{formatPrice(Math.round(tour.price.amount * travelers * 1.1), tour.price.currency)}</span>
                 </div>
               </div>
             </div>
