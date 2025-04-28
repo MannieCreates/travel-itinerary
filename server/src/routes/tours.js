@@ -101,4 +101,32 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Get availability for a specific tour
+router.get('/:id/availability', async (req, res) => {
+  try {
+    // Check if the ID is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid tour ID format' });
+    }
+
+    const tour = await Tour.findById(req.params.id).select('startDates');
+    if (!tour) {
+      return res.status(404).json({ message: 'Tour not found' });
+    }
+
+    // Return only the availability data
+    res.json({
+      tourId: tour._id,
+      startDates: tour.startDates.map(date => ({
+        date: date.date,
+        availableSeats: date.availableSeats,
+        totalSeats: date.totalSeats
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching tour availability:', error);
+    res.status(500).json({ message: 'Error fetching tour availability' });
+  }
+});
+
 export default router;

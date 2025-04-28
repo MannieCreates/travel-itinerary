@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getTourById } from '../services/api';
+import { getTourById, getTourWeather, getTourAvailability } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useCurrency } from '../context/CurrencyContext';
+import GoogleMap from './shared/GoogleMap';
+import WeatherDisplay from './shared/WeatherDisplay';
 
 const TourDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { token } = useAuth();
-  const { addToCart } = useCart();
+  const { addToCart, cart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { formatPrice, convertPrice } = useCurrency();
 
@@ -22,6 +24,11 @@ const TourDetails = () => {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
   const [actionMessage, setActionMessage] = useState({ text: '', type: '' });
+  const [weatherData, setWeatherData] = useState(null);
+  const [isLoadingWeather, setIsLoadingWeather] = useState(false);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+  const [availabilityUpdated, setAvailabilityUpdated] = useState(false);
+  const availabilityCheckIntervalRef = useRef(null);
 
   useEffect(() => {
     const fetchTourDetails = async () => {
@@ -53,6 +60,103 @@ const TourDetails = () => {
     fetchTourDetails();
   }, [id]);
 
+  // Fetch weather data when tour is loaded
+  useEffect(() => {
+    const fetchWeatherData = async () => {
+      if (!tour || !tour._id) return;
+
+      try {
+        setIsLoadingWeather(true);
+
+        // If tour already has weather data that's less than 3 hours old, use that
+        if (
+          tour.weather &&
+          tour.weather.lastUpdated &&
+          new Date() - new Date(tour.weather.lastUpdated) < 3 * 60 * 60 * 1000
+        ) {
+          setWeatherData(tour.weather);
+          return;
+        }
+
+        // Otherwise fetch fresh weather data
+        const data = await getTourWeather(tour._id);
+        setWeatherData(data);
+      } catch (err) {
+        console.error('Error fetching weather data:', err);
+        // Don't set an error state here, as weather is not critical to the page
+      } finally {
+        setIsLoadingWeather(false);
+      }
+    };
+
+    fetchWeatherData();
+  }, [tour]);
+
+  // Set up real-time availability checking
+  useEffect(() => {
+    if (!tour || !tour._id) return;
+
+    // Function to check for availability updates
+    const checkAvailability = async () => {
+      try {
+        setIsCheckingAvailability(true);
+        const availabilityData = await getTourAvailability(tour._id);
+
+        // Check if availability has changed
+        let hasChanged = false;
+
+        if (availabilityData && availabilityData.startDates) {
+          // Compare current tour dates with fetched availability
+          tour.startDates.forEach((currentDate, index) => {
+            const updatedDate = availabilityData.startDates.find(
+              d => new Date(d.date).toISOString() === new Date(currentDate.date).toISOString()
+            );
+
+            if (updatedDate && updatedDate.availableSeats !== currentDate.availableSeats) {
+              hasChanged = true;
+              // Update the tour data with new availability
+              tour.startDates[index].availableSeats = updatedDate.availableSeats;
+            }
+          });
+
+          if (hasChanged) {
+            setAvailabilityUpdated(true);
+            // Create a new tour object to trigger re-render
+            setTour({...tour});
+
+            // Show a notification about the update
+            setActionMessage({
+              text: 'Seat availability has been updated!',
+              type: 'info'
+            });
+
+            // Clear the message after 3 seconds
+            setTimeout(() => {
+              setActionMessage({ text: '', type: '' });
+            }, 3000);
+          }
+        }
+      } catch (err) {
+        console.error('Error checking availability:', err);
+      } finally {
+        setIsCheckingAvailability(false);
+      }
+    };
+
+    // Check availability immediately
+    checkAvailability();
+
+    // Set up interval to check availability every 30 seconds
+    availabilityCheckIntervalRef.current = setInterval(checkAvailability, 30000);
+
+    // Clean up interval on unmount
+    return () => {
+      if (availabilityCheckIntervalRef.current) {
+        clearInterval(availabilityCheckIntervalRef.current);
+      }
+    };
+  }, [tour?._id]);
+
   const [activeTab, setActiveTab] = useState('overview');
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -72,6 +176,27 @@ const TourDetails = () => {
       return;
     }
 
+    // Check if selected date has enough seats
+    const selectedDateObj = tour.startDates.find(
+      date => new Date(date.date).toISOString() === new Date(selectedDate).toISOString()
+    );
+
+    if (!selectedDateObj) {
+      setActionMessage({
+        text: 'Invalid date selected',
+        type: 'error'
+      });
+      return;
+    }
+
+    if (selectedDateObj.availableSeats < travelers) {
+      setActionMessage({
+        text: `Not enough seats available. Only ${selectedDateObj.availableSeats} seats left.`,
+        type: 'error'
+      });
+      return;
+    }
+
     setIsAddingToCart(true);
     setActionMessage({ text: '', type: '' });
 
@@ -79,9 +204,36 @@ const TourDetails = () => {
       // Format the date to match what the server expects (YYYY-MM-DD)
       const formattedDate = new Date(selectedDate).toISOString().split('T')[0];
 
+      // Check if this tour is already in the cart with the same date
+      const alreadyInCart = cart.items?.some(item =>
+        item.tour._id === tour._id &&
+        new Date(item.startDate).toISOString().split('T')[0] === formattedDate
+      );
+
+      if (alreadyInCart) {
+        setActionMessage({
+          text: 'This tour is already in your cart for the selected date',
+          type: 'error'
+        });
+        setIsAddingToCart(false);
+        return;
+      }
+
       const result = await addToCart(tour._id, formattedDate, travelers);
 
       if (result.success) {
+        // Update the local tour data to reflect the new availability
+        const dateIndex = tour.startDates.findIndex(
+          date => new Date(date.date).toISOString() === new Date(selectedDate).toISOString()
+        );
+
+        if (dateIndex !== -1) {
+          // Create a new tour object with updated availability
+          const updatedTour = {...tour};
+          updatedTour.startDates[dateIndex].availableSeats -= travelers;
+          setTour(updatedTour);
+        }
+
         setActionMessage({
           text: 'Tour added to cart successfully!',
           type: 'success'
@@ -449,15 +601,59 @@ const TourDetails = () => {
           {/* Right Column - Booking & Info */}
           <div className="lg:w-1/3">
             {/* Pricing Card */}
-            <div className="bg-white rounded-xl shadow-md p-6 mb-6 sticky top-20">
-              <h3 className="text-2xl font-bold text-gray-800 mb-4">
+            <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">
                 {formatPrice(tour.price.amount, tour.price.currency)}
                 <span className="text-gray-500 text-base font-normal"> / person</span>
               </h3>
 
+              {/* Availability Summary */}
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Available Dates:</h4>
+                <div className="grid grid-cols-1 gap-2">
+                  {tour.startDates
+                    .filter(date => new Date(date.date) > new Date()) // Only show future dates
+                    .sort((a, b) => new Date(a.date) - new Date(b.date)) // Sort by date
+                    .slice(0, 3) // Show only next 3 dates
+                    .map((date, index) => (
+                      <div
+                        key={index}
+                        className={`text-sm p-2 rounded ${
+                          date.availableSeats <= 0
+                            ? 'bg-red-50 text-red-700'
+                            : date.availableSeats < 5
+                              ? 'bg-yellow-50 text-yellow-700'
+                              : 'bg-green-50 text-green-700'
+                        }`}
+                      >
+                        <span className="font-medium">
+                          {new Date(date.date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </span>
+                        <span className="float-right">
+                          {date.availableSeats <= 0
+                            ? 'Sold Out'
+                            : `${date.availableSeats}/${date.totalSeats} available`}
+                        </span>
+                      </div>
+                    ))
+                  }
+                </div>
+                {tour.startDates.filter(date => new Date(date.date) > new Date() && date.availableSeats > 0).length > 3 && (
+                  <div className="text-xs text-gray-500 mt-1 text-right">
+                    + {tour.startDates.filter(date => new Date(date.date) > new Date() && date.availableSeats > 0).length - 3} more dates available
+                  </div>
+                )}
+              </div>
+
               {actionMessage.text && (
                 <div className={`mb-4 p-3 rounded-lg ${
-                  actionMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  actionMessage.type === 'success' ? 'bg-green-100 text-green-800' :
+                  actionMessage.type === 'info' ? 'bg-blue-100 text-blue-800' :
+                  'bg-red-100 text-red-800'
                 }`}>
                   {actionMessage.text}
                 </div>
@@ -466,28 +662,45 @@ const TourDetails = () => {
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select Date
+                  <span className="ml-2 text-xs text-gray-500">
+                    (Updates automatically)
+                  </span>
                 </label>
-                <select
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                >
-                  <option value="">Select a departure date</option>
-                  {tour.startDates.map((dateOption, index) => (
-                    <option
-                      key={index}
-                      value={dateOption.date}
-                      disabled={dateOption.availableSeats <= 0}
-                    >
-                      {new Date(dateOption.date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                      {dateOption.availableSeats <= 0 ? ' (Sold Out)' : ` (${dateOption.availableSeats} seats left)`}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                  >
+                    <option value="">Select a departure date</option>
+                    {tour.startDates.map((dateOption, index) => (
+                      <option
+                        key={index}
+                        value={dateOption.date}
+                        disabled={dateOption.availableSeats <= 0}
+                      >
+                        {new Date(dateOption.date).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                        {dateOption.availableSeats <= 0
+                          ? ' (SOLD OUT)'
+                          : ` (${dateOption.availableSeats}/${dateOption.totalSeats} seats available)`}
+                      </option>
+                    ))}
+                  </select>
+                  {isCheckingAvailability && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="animate-spin h-4 w-4 border-2 border-emerald-500 rounded-full border-t-transparent"></div>
+                    </div>
+                  )}
+                </div>
+                {availabilityUpdated && (
+                  <div className="mt-2 text-xs text-emerald-600">
+                    Availability information is up-to-date
+                  </div>
+                )}
               </div>
 
               <div className="mb-6">
@@ -572,31 +785,37 @@ const TourDetails = () => {
             </div>
 
             {/* Weather Info */}
-            {tour.weather && (
+            {weatherData ? (
+              <WeatherDisplay weather={weatherData} className="mb-6" />
+            ) : isLoadingWeather ? (
               <div className="bg-white rounded-xl shadow-md p-6 mb-6">
                 <h3 className="text-lg font-bold text-gray-800 mb-4">Weather at Destination</h3>
-                <div className="flex items-center">
-                  <div className="mr-4">
-                    <span className="text-4xl font-bold">{tour.weather.temperature}°</span>
-                  </div>
-                  <div>
-                    <div className="font-medium">{tour.weather.condition}</div>
-                    <div className="text-sm text-gray-500">
-                      Last updated: {new Date(tour.weather.lastUpdated).toLocaleDateString()}
+                <div className="flex items-center justify-center py-4">
+                  <div className="animate-pulse flex space-x-4">
+                    <div className="rounded-full bg-gray-200 h-12 w-12"></div>
+                    <div className="flex-1 space-y-4 py-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-200 rounded"></div>
+                        <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            )}
+            ) : tour.weather ? (
+              <WeatherDisplay weather={tour.weather} className="mb-6" />
+            ) : null}
 
             {/* Map Location */}
             <div className="bg-white rounded-xl shadow-md p-6 mb-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4">Location</h3>
-              <div className="aspect-video bg-gray-200 rounded-lg mb-3 overflow-hidden">
-                {/* Placeholder for map - in a real app, you'd use Google Maps or similar */}
-                <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                  <span className="text-gray-500">Map of {tour.destination}</span>
-                </div>
+              <div className="mb-3 overflow-hidden">
+                <GoogleMap
+                  location={tour.location}
+                  destination={tour.destination}
+                  height="250px"
+                />
               </div>
               <div className="text-gray-700">{tour.destination}</div>
             </div>

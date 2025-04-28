@@ -64,4 +64,33 @@ export const getTourById = async (id) => {
   }
 };
 
+export const getTourAvailability = async (tourId) => {
+  try {
+    const response = await api.get(`/tours/${tourId}/availability`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error fetching tour availability' };
+  }
+};
+
+export const getTourWeather = async (tourId) => {
+  try {
+    const response = await api.get(`/weather/tour/${tourId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error fetching weather data' };
+  }
+};
+
+export const getDestinationForecast = async (destination, days = 5) => {
+  try {
+    const response = await api.get(`/weather/forecast/${destination}`, {
+      params: { days }
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error fetching weather forecast' };
+  }
+};
+
 export default api;
