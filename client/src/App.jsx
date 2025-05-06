@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './components/Login';
 import Register from './components/Register';
 import Navbar from './components/Navbar';
@@ -14,6 +14,7 @@ import UserBookings from './components/UserBookings';
 import UserReviews from './components/UserReviews';
 import BlogList from './components/BlogList';
 import BlogPost from './components/BlogPost';
+import FAQ from './components/FAQ';
 import NotFound from './components/NotFound';
 
 // Admin Pages
@@ -21,6 +22,9 @@ import DashboardPage from './pages/admin/DashboardPage';
 import ToursPage from './pages/admin/ToursPage';
 import BookingsPage from './pages/admin/BookingsPage';
 import UsersPage from './pages/admin/UsersPage';
+import CouponsPage from './pages/admin/CouponsPage';
+import FAQsPage from './pages/admin/FAQsPage';
+import BlogPostsPage from './pages/admin/BlogPostsPage';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
@@ -54,7 +58,7 @@ function App() {
           <WishlistProvider>
             <Router>
               <div className="App flex flex-col min-h-screen">
-                <Navbar />
+                <NavbarWithConditionalRendering />
                 <main className="flex-grow">
                   <Routes>
                     <Route path="/" element={<LandingPage />} />
@@ -94,6 +98,7 @@ function App() {
                     } />
                     <Route path="/blog" element={<BlogList />} />
                     <Route path="/blog/:slug" element={<BlogPost />} />
+                    <Route path="/faq" element={<FAQ />} />
 
                     {/* Admin Routes */}
                     <Route path="/admin" element={<Navigate to="/admin/dashboard" />} />
@@ -117,11 +122,27 @@ function App() {
                         <UsersPage />
                       </AdminRoute>
                     } />
+                    <Route path="/admin/coupons" element={
+                      <AdminRoute>
+                        <CouponsPage />
+                      </AdminRoute>
+                    } />
+                    <Route path="/admin/faqs" element={
+                      <AdminRoute>
+                        <FAQsPage />
+                      </AdminRoute>
+                    } />
+                    <Route path="/admin/blog" element={
+                      <AdminRoute>
+                        <BlogPostsPage />
+                      </AdminRoute>
+                    } />
 
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </main>
-                <Footer />
+                {/* Conditionally render Footer only for non-admin routes */}
+                <FooterWithConditionalRendering />
               </div>
             </Router>
           </WishlistProvider>
@@ -129,6 +150,32 @@ function App() {
       </CurrencyProvider>
     </AuthProvider>
   );
+}
+
+// Component to conditionally render Navbar
+function NavbarWithConditionalRendering() {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
+  // Don't render Navbar on admin routes
+  if (isAdminRoute) {
+    return null;
+  }
+
+  return <Navbar />;
+}
+
+// Component to conditionally render Footer
+function FooterWithConditionalRendering() {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
+  // Don't render Footer on admin routes
+  if (isAdminRoute) {
+    return null;
+  }
+
+  return <Footer />;
 }
 
 export default App;

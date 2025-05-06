@@ -28,6 +28,13 @@ const Checkout = () => {
     expiryDate: '',
     cvv: ''
   });
+  const [bankInfo, setBankInfo] = useState({
+    bankName: '',
+    accountName: '',
+    accountNumber: '',
+    routingNumber: '',
+    reference: ''
+  });
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState('');
 
@@ -41,12 +48,17 @@ const Checkout = () => {
     setCardInfo(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleBankInfoChange = (e) => {
+    const { name, value } = e.target;
+    setBankInfo(prev => ({ ...prev, [name]: value }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setPaymentError('');
-    
+
     // Basic validation
-    if (!billingInfo.name || !billingInfo.email || !billingInfo.address || !billingInfo.city || 
+    if (!billingInfo.name || !billingInfo.email || !billingInfo.address || !billingInfo.city ||
         !billingInfo.country || !billingInfo.phone) {
       setPaymentError('Please fill in all required billing fields');
       return;
@@ -57,19 +69,35 @@ const Checkout = () => {
         setPaymentError('Please fill in all card details');
         return;
       }
+    } else if (paymentMethod === 'bank_transfer') {
+      if (!bankInfo.bankName || !bankInfo.accountName || !bankInfo.accountNumber || !bankInfo.routingNumber) {
+        setPaymentError('Please fill in all bank details');
+        return;
+      }
     }
 
     try {
       setIsProcessing(true);
 
       // Prepare payment details
-      const paymentDetails = paymentMethod === 'credit_card' 
-        ? {
-            cardLast4: cardInfo.cardNumber.slice(-4),
-            cardBrand: getCardBrand(cardInfo.cardNumber),
-            expiryDate: cardInfo.expiryDate
-          }
-        : {};
+      let paymentDetails = {};
+
+      if (paymentMethod === 'credit_card') {
+        paymentDetails = {
+          cardLast4: cardInfo.cardNumber.slice(-4),
+          cardBrand: getCardBrand(cardInfo.cardNumber),
+          expiryDate: cardInfo.expiryDate
+        };
+      } else if (paymentMethod === 'bank_transfer') {
+        paymentDetails = {
+          bankName: bankInfo.bankName,
+          accountName: bankInfo.accountName,
+          accountNumber: bankInfo.accountNumber,
+          routingNumber: bankInfo.routingNumber,
+          reference: bankInfo.reference || billingInfo.name,
+          bankReference: `BNK-${Date.now().toString().slice(-6)}`
+        };
+      }
 
       // Process payment
       const response = await api.post('/payments/process-cart', {
@@ -85,12 +113,12 @@ const Checkout = () => {
       await clearCart();
 
       // Redirect to confirmation page
-      navigate('/bookings', { 
-        state: { 
-          success: true, 
+      navigate('/bookings', {
+        state: {
+          success: true,
           message: 'Payment processed successfully!',
           bookings: response.data.bookings
-        } 
+        }
       });
     } catch (err) {
       setPaymentError(err.response?.data?.message || 'Payment processing failed. Please try again.');
@@ -104,7 +132,7 @@ const Checkout = () => {
     // Very basic card brand detection
     const firstDigit = cardNumber.charAt(0);
     const firstTwoDigits = cardNumber.substring(0, 2);
-    
+
     if (firstDigit === '4') return 'Visa';
     if (['51', '52', '53', '54', '55'].includes(firstTwoDigits)) return 'MasterCard';
     if (['34', '37'].includes(firstTwoDigits)) return 'American Express';
@@ -151,12 +179,27 @@ const Checkout = () => {
     );
   }
 
+  // Calculate the raw subtotal without any discounts
+  const calculateSubtotal = () => {
+    const rawSubtotal = cart.items.reduce((total, item) => {
+      return total + (item.price.amount * item.travelers);
+    }, 0);
+    console.log('Checkout - Raw subtotal:', rawSubtotal);
+    return rawSubtotal;
+  };
+
+  // Get the total after any discounts
   const subtotal = calculateTotal();
+  console.log('Checkout - Subtotal after discount:', subtotal);
+
+  // Calculate the discount amount
+  const discountAmount = cart.couponCode ? calculateSubtotal() - subtotal : 0;
+  console.log('Checkout - Discount amount:', discountAmount);
 
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">Checkout</h1>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <form onSubmit={handleSubmit}>
@@ -271,7 +314,7 @@ const Checkout = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
               <div className="p-4 border-b">
                 <h2 className="text-lg font-semibold">Payment Method</h2>
@@ -318,7 +361,7 @@ const Checkout = () => {
                     <label htmlFor="bank_transfer">Bank Transfer</label>
                   </div>
                 </div>
-                
+
                 {paymentMethod === 'credit_card' && (
                   <div className="border p-4 rounded">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -380,39 +423,95 @@ const Checkout = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {paymentMethod === 'bank_transfer' && (
                   <div className="border p-4 rounded">
-                    <p className="text-gray-700 mb-2">Please use the following details for bank transfer:</p>
-                    <div className="mb-2">
-                      <span className="font-medium">Bank Name:</span> Global Travel Bank
+                    <p className="text-gray-700 mb-4">Please enter your bank details for the transfer:</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-gray-700 text-sm font-medium mb-1">
+                          Bank Name *
+                        </label>
+                        <input
+                          type="text"
+                          name="bankName"
+                          value={bankInfo.bankName}
+                          onChange={handleBankInfoChange}
+                          placeholder="Enter your bank name"
+                          className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          required
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-gray-700 text-sm font-medium mb-1">
+                          Account Name *
+                        </label>
+                        <input
+                          type="text"
+                          name="accountName"
+                          value={bankInfo.accountName}
+                          onChange={handleBankInfoChange}
+                          placeholder="Name on your bank account"
+                          className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 text-sm font-medium mb-1">
+                          Account Number *
+                        </label>
+                        <input
+                          type="text"
+                          name="accountNumber"
+                          value={bankInfo.accountNumber}
+                          onChange={handleBankInfoChange}
+                          placeholder="Your account number"
+                          className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-700 text-sm font-medium mb-1">
+                          Routing Number *
+                        </label>
+                        <input
+                          type="text"
+                          name="routingNumber"
+                          value={bankInfo.routingNumber}
+                          onChange={handleBankInfoChange}
+                          placeholder="Your bank routing number"
+                          className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          required
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-gray-700 text-sm font-medium mb-1">
+                          Reference
+                        </label>
+                        <input
+                          type="text"
+                          name="reference"
+                          value={bankInfo.reference}
+                          onChange={handleBankInfoChange}
+                          placeholder="Optional reference for the transfer"
+                          className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
                     </div>
-                    <div className="mb-2">
-                      <span className="font-medium">Account Name:</span> Travel Itinerary Services
-                    </div>
-                    <div className="mb-2">
-                      <span className="font-medium">Account Number:</span> 1234567890
-                    </div>
-                    <div className="mb-2">
-                      <span className="font-medium">Routing Number:</span> 987654321
-                    </div>
-                    <div className="mb-2">
-                      <span className="font-medium">Reference:</span> Please include your name as reference
-                    </div>
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-sm text-gray-500 mt-4">
                       Note: Your booking will be confirmed once we receive your payment.
                     </p>
                   </div>
                 )}
               </div>
             </div>
-            
+
             {paymentError && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
                 <p>{paymentError}</p>
               </div>
             )}
-            
+
             <div className="flex justify-end">
               <button
                 type="button"
@@ -431,11 +530,11 @@ const Checkout = () => {
             </div>
           </form>
         </div>
-        
+
         <div className="lg:col-span-1">
           <div className="bg-white shadow-md rounded-lg p-4 sticky top-4">
             <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
-            
+
             <div className="max-h-80 overflow-y-auto mb-4">
               {cart.items.map((item) => (
                 <div key={item._id} className="flex mb-4 pb-4 border-b">
@@ -458,16 +557,16 @@ const Checkout = () => {
                 </div>
               ))}
             </div>
-            
+
             <div className="mb-4">
               <div className="flex justify-between mb-2">
                 <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">{formatPrice(subtotal)}</span>
+                <span className="font-medium">{formatPrice(calculateSubtotal())}</span>
               </div>
               {cart.couponCode && (
                 <div className="flex justify-between mb-2 text-green-600">
                   <span>Coupon ({cart.couponCode})</span>
-                  <span>-{formatPrice(0)}</span>
+                  <span>-{formatPrice(discountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between font-bold text-lg mt-4 pt-4 border-t">
@@ -475,7 +574,15 @@ const Checkout = () => {
                 <span>{formatPrice(subtotal)}</span>
               </div>
             </div>
-            
+
+            {!cart.couponCode && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-md text-sm">
+                <p className="text-blue-800 font-medium mb-1">💡 Available Coupon Codes</p>
+                <p className="text-blue-700 mb-1">Use <span className="font-medium">WELCOME10</span> for 10% off your first booking!</p>
+                <p className="text-blue-600 text-xs">Apply coupon codes in your cart before checkout.</p>
+              </div>
+            )}
+
             <div className="text-sm text-gray-500">
               <p>By completing your purchase, you agree to our <a href="#" className="text-indigo-600 hover:text-indigo-800">Terms of Service</a> and <a href="#" className="text-indigo-600 hover:text-indigo-800">Privacy Policy</a>.</p>
             </div>

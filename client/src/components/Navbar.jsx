@@ -78,6 +78,9 @@ const Navbar = () => {
           <Link to="/blog" className="text-sm font-medium text-gray-700 hover:text-emerald-600 transition-colors duration-200">
             Blog
           </Link>
+          <Link to="/faq" className="text-sm font-medium text-gray-700 hover:text-emerald-600 transition-colors duration-200">
+            FAQ
+          </Link>
         </div>
 
         {/* Search Bar */}
@@ -116,7 +119,7 @@ const Navbar = () => {
             </button>
 
             {showCurrencyMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg z-10">
                 <div className="py-1">
                   {supportedCurrencies.map((curr) => (
                     <button
@@ -303,6 +306,12 @@ const Navbar = () => {
             className="block px-4 py-2 text-base font-medium text-gray-700 rounded-lg hover:bg-gray-50"
           >
             Blog
+          </Link>
+          <Link
+            to="/faq"
+            className="block px-4 py-2 text-base font-medium text-gray-700 rounded-lg hover:bg-gray-50"
+          >
+            FAQ
           </Link>
 
           {/* Currency Selector */}

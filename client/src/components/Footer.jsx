@@ -29,7 +29,7 @@ const Footer = () => {
               </a>
             </div>
           </div>
-          
+
           <div>
             <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2">
@@ -48,9 +48,12 @@ const Footer = () => {
               <li>
                 <Link to="/wishlist" className="text-gray-400 hover:text-white">Wishlist</Link>
               </li>
+              <li>
+                <Link to="/faq" className="text-gray-400 hover:text-white">FAQ</Link>
+              </li>
             </ul>
           </div>
-          
+
           <div>
             <h3 className="text-lg font-semibold mb-4">Popular Destinations</h3>
             <ul className="space-y-2">
@@ -71,7 +74,7 @@ const Footer = () => {
               </li>
             </ul>
           </div>
-          
+
           <div>
             <h3 className="text-lg font-semibold mb-4">Contact Us</h3>
             <ul className="space-y-2 text-gray-400">
@@ -97,7 +100,7 @@ const Footer = () => {
             </ul>
           </div>
         </div>
-        
+
         <div className="mt-12 pt-8 border-t border-gray-700 text-center text-gray-400">
           <p>&copy; {new Date().getFullYear()} Travel Itinerary. All rights reserved.</p>
         </div>

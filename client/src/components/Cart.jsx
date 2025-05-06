@@ -136,7 +136,22 @@ const Cart = () => {
     );
   }
 
+  // Calculate the raw subtotal without any discounts
+  const calculateRawSubtotal = () => {
+    const rawSubtotal = cart.items.reduce((total, item) => {
+      return total + (item.price.amount * item.travelers);
+    }, 0);
+    console.log('Raw subtotal:', rawSubtotal);
+    return rawSubtotal;
+  };
+
+  // Get the total after any discounts
   const subtotal = calculateTotal();
+  console.log('Subtotal after discount:', subtotal);
+
+  // Calculate the discount amount
+  const discountAmount = cart.couponCode ? calculateRawSubtotal() - subtotal : 0;
+  console.log('Discount amount:', discountAmount);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -249,12 +264,12 @@ const Cart = () => {
             <div className="mb-4">
               <div className="flex justify-between mb-2">
                 <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">{formatPrice(subtotal)}</span>
+                <span className="font-medium">{formatPrice(calculateRawSubtotal())}</span>
               </div>
               {cart.couponCode && (
                 <div className="flex justify-between mb-2 text-green-600">
                   <span>Coupon ({cart.couponCode})</span>
-                  <span>-{formatPrice(0)}</span>
+                  <span>-{formatPrice(discountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between font-bold text-lg mt-4 pt-4 border-t">
@@ -285,6 +300,16 @@ const Cart = () => {
               {couponSuccess && (
                 <p className="text-green-500 text-sm mt-1">{couponSuccess}</p>
               )}
+
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-md text-sm">
+                <p className="text-blue-800 font-medium mb-1">💡 Available Coupon Codes</p>
+                <ul className="text-blue-700 space-y-1">
+                  <li><span className="font-medium">WELCOME10</span> - 10% off any booking</li>
+                  <li><span className="font-medium">SUMMER2023</span> - 15% off bookings over $1000</li>
+                  <li><span className="font-medium">FIXED50</span> - $50 off bookings over $500</li>
+                  <li><span className="font-medium">FAMILY25</span> - 25% off bookings over $2000</li>
+                </ul>
+              </div>
             </div>
 
             <button

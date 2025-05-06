@@ -11,6 +11,7 @@ export const CurrencyProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [supportedCurrencies, setSupportedCurrencies] = useState([
+    { code: 'BDT', name: 'Bangladeshi Taka', symbol: '৳' },
     { code: 'USD', name: 'US Dollar', symbol: '$' },
     { code: 'EUR', name: 'Euro', symbol: '€' },
     { code: 'GBP', name: 'British Pound', symbol: '£' },
@@ -29,7 +30,7 @@ export const CurrencyProvider = ({ children }) => {
     if (savedCurrency) {
       setCurrency(savedCurrency);
     }
-    
+
     fetchRates();
     fetchSupportedCurrencies();
   }, []);
@@ -72,20 +73,20 @@ export const CurrencyProvider = ({ children }) => {
     }
 
     // Convert from source currency to USD
-    const amountInUSD = fromCurrency === 'USD' 
-      ? amount 
+    const amountInUSD = fromCurrency === 'USD'
+      ? amount
       : amount / rates.conversion_rates[fromCurrency];
-    
+
     // Convert from USD to target currency
     const convertedAmount = amountInUSD * rates.conversion_rates[currency];
-    
+
     return Math.round(convertedAmount * 100) / 100;
   };
 
   const formatPrice = (amount, fromCurrency = 'USD') => {
     const convertedAmount = convertPrice(amount, fromCurrency);
     const currencyInfo = supportedCurrencies.find(c => c.code === currency);
-    
+
     return `${currencyInfo?.symbol || ''}${convertedAmount.toLocaleString()}`;
   };
 

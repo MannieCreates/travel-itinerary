@@ -12,12 +12,15 @@ export const CartProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const { token } = useAuth();
 
-  // Fetch cart when user logs in
+  // Fetch cart when user logs in or clear it when user logs out
   useEffect(() => {
     if (token) {
       fetchCart();
     } else {
+      // Clear cart when user is not logged in
       setCart({ items: [] });
+      setError(null);
+      console.log('User not logged in, cart cleared');
     }
   }, [token]);
 
@@ -39,6 +42,13 @@ export const CartProvider = ({ children }) => {
 
   const addToCart = async (tourId, startDate, travelers) => {
     try {
+      // Check if user is logged in
+      if (!token) {
+        setError('Please log in to add items to your cart');
+        console.error('Attempted to add to cart while not logged in');
+        return { success: false, error: 'Please log in to add items to your cart' };
+      }
+
       setLoading(true);
       const response = await api.post('/cart/add',
         { tourId, startDate, travelers },
@@ -48,6 +58,13 @@ export const CartProvider = ({ children }) => {
       setError(null);
       return { success: true };
     } catch (err) {
+      // Handle unauthorized error specifically
+      if (err.response?.status === 401) {
+        setError('Your session has expired. Please log in again.');
+        setCart({ items: [] }); // Clear cart on auth error
+        return { success: false, error: 'Your session has expired. Please log in again.' };
+      }
+
       setError(err.response?.data?.message || 'Failed to add to cart');
       console.error('Error adding to cart:', err);
       return { success: false, error: err.response?.data?.message || 'Failed to add to cart' };
@@ -61,6 +78,14 @@ export const CartProvider = ({ children }) => {
       console.log('Updating cart item:', { itemId, travelers });
       console.log('Item ID type:', typeof itemId);
       console.log('Current cart state before update:', cart);
+
+      // Check if user is logged in
+      if (!token) {
+        setError('Please log in to update your cart');
+        console.error('Attempted to update cart while not logged in');
+        return { success: false, error: 'Please log in to update your cart' };
+      }
+
       setLoading(true);
 
       // Validate inputs
@@ -131,6 +156,13 @@ export const CartProvider = ({ children }) => {
           travelers
         });
 
+        // Handle unauthorized error
+        if (err.response?.status === 401) {
+          setError('Your session has expired. Please log in again.');
+          setCart({ items: [] }); // Clear cart on auth error
+          return { success: false, error: 'Your session has expired. Please log in again.' };
+        }
+
         // If we get a 404, the cart or item doesn't exist
         // Let's fetch the cart to get the latest state
         if (err.response?.status === 404) {
@@ -155,6 +187,14 @@ export const CartProvider = ({ children }) => {
     try {
       console.log('Removing from cart:', { itemId });
       console.log('Item ID type:', typeof itemId);
+
+      // Check if user is logged in
+      if (!token) {
+        setError('Please log in to remove items from your cart');
+        console.error('Attempted to remove from cart while not logged in');
+        return { success: false, error: 'Please log in to remove items from your cart' };
+      }
+
       setLoading(true);
 
       // Validate input
@@ -185,6 +225,13 @@ export const CartProvider = ({ children }) => {
           itemId
         });
 
+        // Handle unauthorized error
+        if (err.response?.status === 401) {
+          setError('Your session has expired. Please log in again.');
+          setCart({ items: [] }); // Clear cart on auth error
+          return { success: false, error: 'Your session has expired. Please log in again.' };
+        }
+
         // If we get a 404, the cart or item doesn't exist
         // Let's fetch the cart to get the latest state
         if (err.response?.status === 404) {
@@ -205,13 +252,31 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = async () => {
     try {
+      // If user is not logged in, just clear the local cart state
+      if (!token) {
+        setCart({ items: [] });
+        setError(null);
+        console.log('User not logged in, local cart cleared');
+        return { success: true };
+      }
+
       setLoading(true);
-      await api.delete('/cart/clear', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setCart({ items: [] });
-      setError(null);
-      return { success: true };
+      try {
+        await api.delete('/cart/clear', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setCart({ items: [] });
+        setError(null);
+        return { success: true };
+      } catch (err) {
+        // Handle unauthorized error
+        if (err.response?.status === 401) {
+          setError('Your session has expired. Please log in again.');
+          setCart({ items: [] }); // Clear cart on auth error
+          return { success: false, error: 'Your session has expired. Please log in again.' };
+        }
+        throw err; // Re-throw for the outer catch block
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to clear cart');
       console.error('Error clearing cart:', err);
@@ -223,14 +288,41 @@ export const CartProvider = ({ children }) => {
 
   const applyCoupon = async (couponCode) => {
     try {
+      console.log('Applying coupon code:', couponCode);
+
+      // Check if user is logged in
+      if (!token) {
+        setError('Please log in to apply a coupon');
+        console.error('Attempted to apply coupon while not logged in');
+        return { success: false, error: 'Please log in to apply a coupon' };
+      }
+
       setLoading(true);
-      const response = await api.post('/cart/apply-coupon',
-        { couponCode },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setCart(response.data);
-      setError(null);
-      return { success: true };
+      try {
+        const response = await api.post('/cart/apply-coupon',
+          { couponCode },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        // Make sure the coupon code is in uppercase to match our discount logic
+        const updatedCart = {
+          ...response.data,
+          couponCode: couponCode.toUpperCase()
+        };
+
+        console.log('Cart after applying coupon:', updatedCart);
+        setCart(updatedCart);
+        setError(null);
+        return { success: true };
+      } catch (err) {
+        // Handle unauthorized error
+        if (err.response?.status === 401) {
+          setError('Your session has expired. Please log in again.');
+          setCart({ items: [] }); // Clear cart on auth error
+          return { success: false, error: 'Your session has expired. Please log in again.' };
+        }
+        throw err; // Re-throw for the outer catch block
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to apply coupon');
       console.error('Error applying coupon:', err);
@@ -241,9 +333,36 @@ export const CartProvider = ({ children }) => {
   };
 
   const calculateTotal = () => {
-    return cart.items.reduce((total, item) => {
+    const subtotal = cart.items.reduce((total, item) => {
       return total + (item.price.amount * item.travelers);
     }, 0);
+
+    // In a real application, the discount would be calculated on the server
+    // For now, we'll simulate a discount calculation
+    if (cart.couponCode) {
+      console.log('Applying coupon:', cart.couponCode);
+      console.log('Subtotal before discount:', subtotal);
+
+      let discountedTotal = subtotal;
+
+      // Apply a simple discount based on the coupon code
+      if (cart.couponCode === 'WELCOME10') {
+        discountedTotal = subtotal * 0.9; // 10% off
+      } else if (cart.couponCode === 'SUMMER2023' && subtotal >= 1000) {
+        discountedTotal = subtotal * 0.85; // 15% off
+      } else if (cart.couponCode === 'FIXED50' && subtotal >= 500) {
+        discountedTotal = subtotal - 50; // $50 off
+      } else if (cart.couponCode === 'FAMILY25' && subtotal >= 2000) {
+        discountedTotal = subtotal * 0.75; // 25% off
+      }
+
+      console.log('Discounted total:', discountedTotal);
+      console.log('Discount amount:', subtotal - discountedTotal);
+
+      return discountedTotal;
+    }
+
+    return subtotal;
   };
 
   const getItemCount = () => {
