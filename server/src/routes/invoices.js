@@ -30,6 +30,37 @@ router.get('/user', auth, async (req, res) => {
   }
 });
 
+// Get invoice by booking ID
+router.get('/booking/:bookingId', auth, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    // Find invoice for this booking
+    const invoice = await Invoice.findOne({ booking: bookingId })
+      .populate({
+        path: 'booking',
+        select: 'startDate status participants specialRequests user',
+        populate: {
+          path: 'tour',
+          select: 'title destination duration price'
+        }
+      });
+
+    if (!invoice) {
+      return res.status(404).json({ message: 'No invoice found for this booking' });
+    }
+
+    // Check if user is authorized to view this invoice
+    if (invoice.user.toString() !== req.userId) {
+      return res.status(403).json({ message: 'Not authorized to view this invoice' });
+    }
+
+    res.json(invoice);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching invoice', error: error.message });
+  }
+});
+
 // Get a specific invoice
 router.get('/:id', auth, async (req, res) => {
   try {
@@ -103,9 +134,28 @@ router.get('/:id/pdf', auth, async (req, res) => {
     // Create PDF file path
     const pdfPath = path.join(uploadsDir, `invoice-${invoice.invoiceNumber}.pdf`);
 
+    // Check if PDF already exists and is recent (less than 1 hour old)
+    if (fs.existsSync(pdfPath)) {
+      const stats = fs.statSync(pdfPath);
+      const fileAge = (new Date() - stats.mtime) / 1000 / 60; // age in minutes
+
+      if (fileAge < 60) {
+        // If PDF exists and is recent, just send it
+        return res.download(pdfPath);
+      }
+    }
+
     // Generate PDF
     const doc = new PDFDocument({ margin: 50 });
-    doc.pipe(fs.createWriteStream(pdfPath));
+    const writeStream = fs.createWriteStream(pdfPath);
+
+    // Set up promise to know when the PDF is done being written
+    const pdfFinished = new Promise((resolve, reject) => {
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    });
+
+    doc.pipe(writeStream);
 
     // Add company logo
     // doc.image('path/to/logo.png', 50, 45, { width: 150 });
@@ -214,6 +264,9 @@ router.get('/:id/pdf', auth, async (req, res) => {
 
     // Finalize PDF
     doc.end();
+
+    // Wait for PDF to be fully written
+    await pdfFinished;
 
     // Update invoice with PDF URL
     invoice.pdfUrl = `/uploads/invoices/invoice-${invoice.invoiceNumber}.pdf`;

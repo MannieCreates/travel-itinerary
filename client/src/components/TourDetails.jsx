@@ -7,6 +7,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { useCurrency } from '../context/CurrencyContext';
 import GoogleMap from './shared/GoogleMap';
 import WeatherDisplay from './shared/WeatherDisplay';
+import TourReviews from './shared/TourReviews';
 
 const TourDetails = () => {
   const { id } = useParams();
@@ -429,6 +430,16 @@ const TourDetails = () => {
                 >
                   Gallery
                 </button>
+                <button
+                  onClick={() => setActiveTab('reviews')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'reviews'
+                      ? 'border-emerald-500 text-emerald-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Reviews ({tour.totalReviews})
+                </button>
               </nav>
             </div>
 
@@ -594,6 +605,11 @@ const TourDetails = () => {
                     ))}
                   </div>
                 </div>
+              )}
+
+              {/* Reviews Tab */}
+              {activeTab === 'reviews' && (
+                <TourReviews tourId={tour._id} tourTitle={tour.title} />
               )}
             </div>
           </div>

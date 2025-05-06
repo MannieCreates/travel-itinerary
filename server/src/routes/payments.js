@@ -7,6 +7,8 @@ import Cart from '../models/Cart.js';
 import Tour from '../models/Tour.js';
 import { auth } from '../middleware/auth.js';
 import mongoose from 'mongoose';
+import User from '../models/User.js';
+import { sendBookingConfirmation } from '../utils/emailService.js';
 
 const router = express.Router();
 
@@ -415,6 +417,21 @@ router.post('/process-cart', auth, async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    // Get user details for email
+    const user = await User.findById(req.userId);
+    
+    // Send booking confirmation emails after transaction is committed
+    for (const booking of bookings) {
+      try {
+        const tour = await Tour.findById(booking.tour);
+        await sendBookingConfirmation(booking, user, tour);
+        console.log(`Booking confirmation email sent for booking ${booking._id}`);
+      } catch (emailError) {
+        console.error('Error sending booking confirmation email:', emailError);
+        // Don't fail the process if email sending fails
+      }
+    }
+
     // Populate booking details for response
     const populatedBookings = await Booking.find({
       _id: { $in: bookings.map(b => b._id) }
@@ -445,3 +462,4 @@ router.post('/process-cart', auth, async (req, res) => {
 });
 
 export default router;
+

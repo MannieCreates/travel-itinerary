@@ -108,6 +108,7 @@ const EmailTest = () => {
             <option value="system">System</option>
             <option value="booking_confirmation">Booking Confirmation</option>
             <option value="booking_reminder">Booking Reminder</option>
+            <option value="booking_update">Booking Update</option>
             <option value="payment_confirmation">Payment Confirmation</option>
             <option value="tour_update">Tour Update</option>
             <option value="promotion">Promotion</option>

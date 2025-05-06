@@ -50,7 +50,7 @@ const UserBookings = () => {
 
     try {
       setIsCancelling(true);
-      await api.post(`/bookings/${selectedBooking._id}/cancel`,
+      await api.put(`/bookings/${selectedBooking._id}/cancel`,
         { reason: cancelReason },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -87,20 +87,45 @@ const UserBookings = () => {
 
   const downloadInvoice = async (bookingId) => {
     try {
-      const response = await api.get(`/invoices/booking/${bookingId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      // Try to get existing invoice for this booking
+      let invoiceId;
 
-      if (response.data && response.data._id) {
-        // Open invoice PDF in new tab
-        window.open(`/api/invoices/${response.data._id}/pdf`, '_blank');
-      } else {
-        // Create invoice if it doesn't exist
-        const createResponse = await api.post(`/invoices/booking/${bookingId}`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
+      try {
+        const response = await api.get(`/invoices/booking/${bookingId}`);
+        if (response.data && response.data._id) {
+          invoiceId = response.data._id;
+        }
+      } catch (error) {
+        // If invoice doesn't exist (404) or other error, create a new one
+        if (error.response?.status === 404) {
+          const createResponse = await api.post(`/invoices/booking/${bookingId}`, {});
+          invoiceId = createResponse.data._id;
+        } else {
+          // Re-throw other errors
+          throw error;
+        }
+      }
+
+      if (invoiceId) {
+        // Download the PDF using axios with proper authentication
+        const response = await api.get(`/invoices/${invoiceId}/pdf`, {
+          responseType: 'blob', // Important for binary data like PDFs
         });
 
-        window.open(`/api/invoices/${createResponse.data._id}/pdf`, '_blank');
+        // Create a blob URL and trigger download
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `invoice-${invoiceId}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+
+        // Clean up
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(link);
+      } else {
+        throw new Error('Failed to get or create invoice');
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to download invoice');

@@ -45,6 +45,26 @@ router.get('/user', auth, async (req, res) => {
   }
 });
 
+// Get completed bookings for the authenticated user
+router.get('/completed', auth, async (req, res) => {
+  try {
+    const bookings = await Booking.find({
+      user: req.userId,
+      status: 'completed'
+    })
+      .populate({
+        path: 'tour',
+        select: 'title images destination duration category _id'
+      })
+      .sort({ createdAt: -1 });
+
+    res.json(bookings);
+  } catch (error) {
+    console.error('Error fetching completed bookings:', error);
+    res.status(500).json({ message: 'Error fetching completed bookings' });
+  }
+});
+
 // Get a specific booking by ID
 router.get('/:id', auth, async (req, res) => {
   try {
@@ -263,16 +283,15 @@ router.put('/:id/cancel', auth, async (req, res) => {
       refundPercentage = 0; // 100% fee (no refund)
     }
 
-    const refundAmount = (booking.totalPrice * refundPercentage) / 100;
+    const refundAmount = (booking.totalPrice.amount * refundPercentage) / 100;
 
     // Update booking status
     booking.status = 'cancelled';
-    booking.cancellationDetails = {
-      cancelledAt: new Date(),
-      reason: req.body.reason || 'Customer requested cancellation',
-      refundAmount,
-      refundPercentage
-    };
+
+    // Add cancellation reason to specialRequests field since there's no dedicated cancellationDetails field
+    booking.specialRequests = booking.specialRequests
+      ? `${booking.specialRequests}\n\nCancellation reason: ${req.body.reason || 'Customer requested cancellation'}`
+      : `Cancellation reason: ${req.body.reason || 'Customer requested cancellation'}`;
 
     await booking.save();
 
@@ -283,7 +302,9 @@ router.put('/:id/cancel', auth, async (req, res) => {
     );
 
     if (selectedDateIndex !== -1) {
-      tour.startDates[selectedDateIndex].availableSeats += booking.travelers;
+      // Use the total number of participants (adults + children)
+      const totalParticipants = booking.participants.adults + (booking.participants.children || 0);
+      tour.startDates[selectedDateIndex].availableSeats += totalParticipants;
       await tour.save();
     }
 
@@ -302,7 +323,7 @@ router.put('/:id/cancel', auth, async (req, res) => {
       user: req.userId,
       type: 'booking_update',
       title: 'Booking Cancelled',
-      message: `Your booking for ${tour.title} has been cancelled. ${refundPercentage > 0 ? `A refund of ${refundAmount} ${booking.currency} will be processed.` : 'No refund will be issued due to late cancellation.'}`,
+      message: `Your booking for ${tour.title} has been cancelled. ${refundPercentage > 0 ? `A refund of ${refundAmount} ${booking.totalPrice.currency} will be processed.` : 'No refund will be issued due to late cancellation.'}`,
       relatedTo: {
         model: 'Booking',
         id: booking._id

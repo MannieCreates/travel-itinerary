@@ -95,4 +95,51 @@ export const getDestinationForecast = async (destination, days = 5) => {
   }
 };
 
+export const getTourReviews = async (tourId, page = 1, limit = 5) => {
+  try {
+    const response = await api.get(`/reviews/tour/${tourId}`, {
+      params: { page, limit, sort: '-createdAt' }
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error fetching tour reviews' };
+  }
+};
+
+export const submitReview = async (reviewData) => {
+  try {
+    const response = await api.post('/reviews', reviewData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error submitting review' };
+  }
+};
+
+export const updateReview = async (reviewId, reviewData) => {
+  try {
+    const response = await api.put(`/reviews/${reviewId}`, reviewData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error updating review' };
+  }
+};
+
+export const deleteReview = async (reviewId) => {
+  try {
+    const response = await api.delete(`/reviews/${reviewId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error deleting review' };
+  }
+};
+
+export const getUserCompletedBookings = async () => {
+  try {
+    const response = await api.get('/bookings/completed');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error fetching completed bookings' };
+  }
+};
+
 export default api;
