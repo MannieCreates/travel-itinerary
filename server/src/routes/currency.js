@@ -23,7 +23,8 @@ const mockExchangeRates = {
     "CNY": 7.24,
     "INR": 83.47,
     "SGD": 1.35,
-    "CHF": 0.91
+    "CHF": 0.91,
+    "BDT": 110.25
   }
 };
 
@@ -35,6 +36,7 @@ let exchangeRatesCache = {
 
 // Supported currencies
 const supportedCurrencies = [
+  { code: 'BDT', name: 'Bangladeshi Taka', symbol: '৳' },
   { code: 'USD', name: 'US Dollar', symbol: '$' },
   { code: 'EUR', name: 'Euro', symbol: '€' },
   { code: 'GBP', name: 'British Pound', symbol: '£' },

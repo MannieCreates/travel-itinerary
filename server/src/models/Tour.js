@@ -76,6 +76,12 @@ const tourSchema = new mongoose.Schema({
   weather: {
     temperature: Number,
     condition: String,
+    description: String,
+    icon: String,
+    humidity: Number,
+    windSpeed: Number,
+    cloudCover: Number,
+    precipitation: Number,
     lastUpdated: Date
   },
   createdAt: {
@@ -89,4 +95,4 @@ tourSchema.index({ destination: 'text', title: 'text', description: 'text' });
 
 const Tour = mongoose.model('Tour', tourSchema);
 
-export default Tour; 
+export default Tour;

@@ -14,7 +14,7 @@ router.post('/validate', auth, async (req, res) => {
     }
 
     const coupon = await Coupon.findOne({ code: code.toUpperCase() });
-    
+
     if (!coupon) {
       return res.status(404).json({ message: 'Invalid coupon code' });
     }
@@ -24,7 +24,7 @@ router.post('/validate', auth, async (req, res) => {
     }
 
     if (subtotal && subtotal < coupon.minPurchase) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: `Minimum purchase amount of ${coupon.minPurchase} required`,
         minPurchase: coupon.minPurchase
       });
@@ -61,7 +61,7 @@ router.post('/apply', auth, async (req, res) => {
     }
 
     const coupon = await Coupon.findOne({ code: code.toUpperCase() });
-    
+
     if (!coupon) {
       return res.status(404).json({ message: 'Invalid coupon code' });
     }
@@ -71,7 +71,7 @@ router.post('/apply', auth, async (req, res) => {
     }
 
     if (subtotal < coupon.minPurchase) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: `Minimum purchase amount of ${coupon.minPurchase} required`,
         minPurchase: coupon.minPurchase
       });
@@ -81,9 +81,9 @@ router.post('/apply', auth, async (req, res) => {
     if (coupon.applicableTours && coupon.applicableTours.length > 0 && items) {
       const tourIds = items.map(item => item.tourId.toString());
       const applicableTourIds = coupon.applicableTours.map(tour => tour.toString());
-      
+
       const hasApplicableTour = tourIds.some(id => applicableTourIds.includes(id));
-      
+
       if (!hasApplicableTour) {
         return res.status(400).json({ message: 'Coupon is not applicable to the selected tours' });
       }
@@ -106,6 +106,33 @@ router.post('/apply', auth, async (req, res) => {
   } catch (error) {
     console.error('Error applying coupon:', error);
     res.status(500).json({ message: 'Error applying coupon' });
+  }
+});
+
+// List all coupons with pagination
+router.get('/', auth, async (req, res) => {
+  try {
+    const { page = 1, limit = 10, sort = '-createdAt' } = req.query;
+
+    // In a real application, you would check if the user is an admin
+    // For now, we'll just return all coupons with pagination
+    const coupons = await Coupon.find()
+      .sort(sort)
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .populate('applicableTours', 'title');
+
+    const total = await Coupon.countDocuments();
+
+    res.json({
+      coupons,
+      totalPages: Math.ceil(total / parseInt(limit)),
+      currentPage: parseInt(page),
+      total
+    });
+  } catch (error) {
+    console.error('Error fetching coupons:', error);
+    res.status(500).json({ message: 'Error fetching coupons' });
   }
 });
 
@@ -174,11 +201,11 @@ router.post('/admin', auth, async (req, res) => {
 });
 
 // Update a coupon (admin only)
-router.put('/admin/:id', auth, async (req, res) => {
+router.put('/:id', auth, async (req, res) => {
   try {
     // In a real application, you would check if the user is an admin
     const coupon = await Coupon.findById(req.params.id);
-    
+
     if (!coupon) {
       return res.status(404).json({ message: 'Coupon not found' });
     }
@@ -219,11 +246,11 @@ router.put('/admin/:id', auth, async (req, res) => {
 });
 
 // Delete a coupon (admin only)
-router.delete('/admin/:id', auth, async (req, res) => {
+router.delete('/:id', auth, async (req, res) => {
   try {
     // In a real application, you would check if the user is an admin
     const coupon = await Coupon.findById(req.params.id);
-    
+
     if (!coupon) {
       return res.status(404).json({ message: 'Coupon not found' });
     }

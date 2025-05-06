@@ -217,6 +217,73 @@ router.get('/bookings', auth, isAdmin, async (req, res) => {
   }
 });
 
+// Update booking (admin only)
+router.put('/bookings/:id', auth, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, notes } = req.body;
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Store old status for notification
+    const oldStatus = booking.status;
+    const statusChanged = status && status !== oldStatus;
+
+    // Update booking fields
+    if (status) booking.status = status;
+    if (notes !== undefined) booking.notes = notes;
+    booking.updatedAt = new Date();
+
+    await booking.save();
+
+    // Return booking with populated fields
+    const updatedBooking = await Booking.findById(id)
+      .populate({
+        path: 'user',
+        select: 'username email'
+      })
+      .populate({
+        path: 'tour',
+        select: 'title destination'
+      });
+
+    // Create notification if status changed
+    if (statusChanged) {
+      const notification = new Notification({
+        user: booking.user,
+        type: 'booking_update',
+        title: 'Booking Status Updated',
+        message: `Your booking status has been updated from ${oldStatus} to ${status}.`,
+        relatedTo: {
+          model: 'Booking',
+          id: booking._id
+        }
+      });
+
+      await notification.save();
+
+      // Send email notification
+      try {
+        const user = await User.findById(booking.user);
+        const tour = await Tour.findById(booking.tour);
+
+        await sendBookingStatusUpdate(booking, user, tour, oldStatus);
+        console.log('Booking status update email sent successfully');
+      } catch (emailError) {
+        console.error('Error sending booking status update email:', emailError);
+        // Don't fail the status update if email fails
+      }
+    }
+
+    res.json(updatedBooking);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating booking', error: error.message });
+  }
+});
+
 // Update booking status (admin only)
 router.put('/bookings/:id/status', auth, isAdmin, async (req, res) => {
   try {
@@ -455,6 +522,110 @@ router.put('/blog/:id/status', auth, isAdmin, async (req, res) => {
     res.json(updatedPost);
   } catch (error) {
     res.status(500).json({ message: 'Error updating blog post status', error: error.message });
+  }
+});
+
+// Create a new tour (admin only)
+router.post('/tours', auth, isAdmin, async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      destination,
+      duration,
+      price,
+      category,
+      inclusions,
+      startDates
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !description || !destination || !duration || !price || !category) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Create new tour
+    const tour = new Tour({
+      title,
+      description,
+      destination,
+      duration,
+      price,
+      category,
+      inclusions: inclusions || [],
+      startDates: startDates || [],
+      location: {
+        // Default coordinates if not provided
+        coordinates: [-74.0060, 40.7128] // New York City
+      }
+    });
+
+    await tour.save();
+    res.status(201).json(tour);
+  } catch (error) {
+    res.status(500).json({ message: 'Error creating tour', error: error.message });
+  }
+});
+
+// Update a tour (admin only)
+router.put('/tours/:id', auth, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      title,
+      description,
+      destination,
+      duration,
+      price,
+      category,
+      inclusions,
+      startDates
+    } = req.body;
+
+    const tour = await Tour.findById(id);
+    if (!tour) {
+      return res.status(404).json({ message: 'Tour not found' });
+    }
+
+    // Update fields
+    if (title) tour.title = title;
+    if (description) tour.description = description;
+    if (destination) tour.destination = destination;
+    if (duration) tour.duration = duration;
+    if (price) tour.price = price;
+    if (category) tour.category = category;
+    if (inclusions) tour.inclusions = inclusions;
+    if (startDates) tour.startDates = startDates;
+
+    await tour.save();
+    res.json(tour);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating tour', error: error.message });
+  }
+});
+
+// Delete a tour (admin only)
+router.delete('/tours/:id', auth, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const tour = await Tour.findById(id);
+    if (!tour) {
+      return res.status(404).json({ message: 'Tour not found' });
+    }
+
+    // Check if there are any bookings for this tour
+    const bookingsCount = await Booking.countDocuments({ tour: id });
+    if (bookingsCount > 0) {
+      return res.status(400).json({
+        message: 'Cannot delete tour with existing bookings. Consider making it unavailable instead.'
+      });
+    }
+
+    await Tour.findByIdAndDelete(id);
+    res.json({ message: 'Tour deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting tour', error: error.message });
   }
 });
 

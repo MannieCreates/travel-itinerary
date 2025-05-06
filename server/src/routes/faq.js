@@ -41,6 +41,35 @@ router.get('/categories', async (req, res) => {
   }
 });
 
+// Reorder FAQs (admin only)
+router.post('/reorder', auth, async (req, res) => {
+  try {
+    // In a real app, check if user is admin
+    const { items } = req.body;
+
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ message: 'Invalid items format' });
+    }
+
+    // Update order for each item
+    const updatePromises = items.map(item => {
+      return FAQ.findByIdAndUpdate(
+        item.id,
+        { order: item.order },
+        { new: true }
+      );
+    });
+
+    await Promise.all(updatePromises);
+
+    // Get updated FAQs
+    const faqs = await FAQ.find().sort({ category: 1, order: 1 });
+    res.json(faqs);
+  } catch (error) {
+    res.status(500).json({ message: 'Error reordering FAQs', error: error.message });
+  }
+});
+
 // Get a specific FAQ
 router.get('/:id', async (req, res) => {
   try {
@@ -122,35 +151,6 @@ router.delete('/:id', auth, async (req, res) => {
     res.json({ message: 'FAQ deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting FAQ', error: error.message });
-  }
-});
-
-// Reorder FAQs (admin only)
-router.post('/reorder', auth, async (req, res) => {
-  try {
-    // In a real app, check if user is admin
-    const { items } = req.body;
-
-    if (!items || !Array.isArray(items)) {
-      return res.status(400).json({ message: 'Invalid items format' });
-    }
-
-    // Update order for each item
-    const updatePromises = items.map(item => {
-      return FAQ.findByIdAndUpdate(
-        item.id,
-        { order: item.order },
-        { new: true }
-      );
-    });
-
-    await Promise.all(updatePromises);
-    
-    // Get updated FAQs
-    const faqs = await FAQ.find().sort({ category: 1, order: 1 });
-    res.json(faqs);
-  } catch (error) {
-    res.status(500).json({ message: 'Error reordering FAQs', error: error.message });
   }
 });
 
